@@ -88,9 +88,13 @@ COPY --chown=user:user comfyui_config/config.ini user/default/ComfyUI-Manager/co
 # Copy the default configuration file
 COPY --chown=user:user comfyui_config/extra_model_paths.yaml ./extra_model_paths.yaml
 
+# Snapshot the fully built ComfyUI for EBS volume initialization
+RUN cp -a /home/user/opt/ComfyUI /home/user/opt/ComfyUI_snapshot
+
 # Environment variables for environment management
 ENV EFS_MOUNT_PATH=/mnt/efs \
     COMFYUI_PATH=/home/user/opt/ComfyUI \
+    COMFYUI_SNAPSHOT=/home/user/opt/ComfyUI_snapshot \
     SCRIPTS_PATH=/home/user/scripts
 
 # Use entrypoint script for environment initialization

@@ -16,6 +16,39 @@ echo "EFS Mount Path: ${EFS_MOUNT_PATH}"
 echo "ComfyUI Path: ${COMFYUI_PATH}"
 echo "============================================"
 
+# Initialize EBS volume from Docker image snapshot if empty
+COMFYUI_SNAPSHOT="${COMFYUI_SNAPSHOT:-/home/user/opt/ComfyUI_snapshot}"
+if [ -d "${COMFYUI_SNAPSHOT}" ]; then
+    if [ ! -f "${COMFYUI_PATH}/main.py" ]; then
+        echo "EBS volume is empty. Initializing from Docker image snapshot..."
+        cp -a "${COMFYUI_SNAPSHOT}/." "${COMFYUI_PATH}/"
+        echo "EBS volume initialized successfully."
+    else
+        # Sync custom_nodes that exist in snapshot but not in EBS
+        echo "Syncing pre-installed custom nodes from snapshot..."
+        for node_dir in "${COMFYUI_SNAPSHOT}/custom_nodes"/*/; do
+            node_name=$(basename "$node_dir")
+            if [ ! -d "${COMFYUI_PATH}/custom_nodes/${node_name}" ]; then
+                echo "  Installing: ${node_name}"
+                cp -a "$node_dir" "${COMFYUI_PATH}/custom_nodes/${node_name}"
+            fi
+        done
+        # Ensure input/yedp_anims exists
+        mkdir -p "${COMFYUI_PATH}/input/yedp_anims"
+        # Ensure temp_uploads exists
+        mkdir -p "${COMFYUI_PATH}/temp_uploads"
+        # Sync config.ini if missing
+        if [ ! -f "${COMFYUI_PATH}/user/default/ComfyUI-Manager/config.ini" ] && \
+           [ -f "${COMFYUI_SNAPSHOT}/user/default/ComfyUI-Manager/config.ini" ]; then
+            mkdir -p "${COMFYUI_PATH}/user/default/ComfyUI-Manager"
+            cp "${COMFYUI_SNAPSHOT}/user/default/ComfyUI-Manager/config.ini" \
+               "${COMFYUI_PATH}/user/default/ComfyUI-Manager/config.ini"
+            echo "  Copied ComfyUI Manager config.ini"
+        fi
+        echo "Sync complete."
+    fi
+fi
+
 # Wait for EFS mount if necessary
 MAX_WAIT=30
 WAIT_COUNT=0

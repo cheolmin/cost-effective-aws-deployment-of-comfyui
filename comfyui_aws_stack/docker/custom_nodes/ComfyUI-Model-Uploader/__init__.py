@@ -175,7 +175,22 @@ async def upload_status(request):
     })
 
 
-NODE_CLASS_MAPPINGS = {}
-NODE_DISPLAY_NAME_MAPPINGS = {}
+class ModelUploadInfo:
+    """Dummy node so ComfyUI loads this custom node and its web extensions."""
+    @classmethod
+    def INPUT_TYPES(cls):
+        return {"required": {}}
+
+    RETURN_TYPES = ("STRING",)
+    FUNCTION = "info"
+    CATEGORY = "utils"
+    OUTPUT_NODE = True
+
+    def info(self):
+        return ("Model Uploader active",)
+
+
+NODE_CLASS_MAPPINGS = {"ModelUploadInfo": ModelUploadInfo}
+NODE_DISPLAY_NAME_MAPPINGS = {"ModelUploadInfo": "Model Upload Info"}
 WEB_DIRECTORY = "./web"
 __all__ = ["NODE_CLASS_MAPPINGS", "NODE_DISPLAY_NAME_MAPPINGS", "WEB_DIRECTORY"]

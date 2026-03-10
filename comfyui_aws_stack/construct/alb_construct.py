@@ -78,7 +78,8 @@ class AlbConstruct(Construct):
             scope, "ComfyUIALB",
             vpc=vpc,
             internet_facing=True,
-            security_group=alb_security_group
+            security_group=alb_security_group,
+            idle_timeout=Duration.seconds(300),
         )
 
         # Redirect Load Balancer traffic on port 80 to port 443

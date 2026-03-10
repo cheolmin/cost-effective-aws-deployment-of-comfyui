@@ -61,6 +61,10 @@ ARG CACHE_BUST=20260310_v1
 # Copy Environment Manager custom node
 COPY --chown=user:user custom_nodes/ComfyUI-Environment-Manager /home/user/opt/ComfyUI/custom_nodes/ComfyUI-Environment-Manager
 
+# Copy Model Uploader custom node (chunked upload for large model files)
+COPY --chown=user:user custom_nodes/ComfyUI-Model-Uploader /home/user/opt/ComfyUI/custom_nodes/ComfyUI-Model-Uploader
+RUN mkdir -p /home/user/opt/ComfyUI/temp_uploads
+
 # ============================================
 # Advanced Workshop: Pre-install custom nodes
 # ============================================

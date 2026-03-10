@@ -17,7 +17,7 @@ echo "ComfyUI Path: ${COMFYUI_PATH}"
 echo "============================================"
 
 # Initialize EBS volume from Docker image snapshot if empty
-COMFYUI_SNAPSHOT="${COMFYUI_SNAPSHOT:-/home/user/opt/ComfyUI_snapshot}"
+COMFYUI_SNAPSHOT="${COMFYUI_SNAPSHOT:-/home/user/comfyui_snapshot}"
 if [ -d "${COMFYUI_SNAPSHOT}" ]; then
     if [ ! -f "${COMFYUI_PATH}/main.py" ]; then
         echo "EBS volume is empty. Initializing from Docker image snapshot..."

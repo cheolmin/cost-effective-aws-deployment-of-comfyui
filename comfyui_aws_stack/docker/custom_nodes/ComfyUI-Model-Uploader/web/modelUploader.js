@@ -1,4 +1,4 @@
-import { app } from "../../../scripts/app.js";
+import { app } from "../../scripts/app.js";
 
 const CHUNK_SIZE = 100 * 1024 * 1024; // 100MB per chunk
 

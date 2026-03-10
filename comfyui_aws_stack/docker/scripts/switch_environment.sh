@@ -162,10 +162,12 @@ configure_environment() {
         done
     fi
 
-    # Copy extra_model_paths.yaml (remove first to handle root-owned files from previous deploys)
+    # Copy extra_model_paths.yaml (handle root-owned files from previous deploys)
     if [ -f "${env_path}/extra_model_paths.yaml" ]; then
         rm -f "${COMFYUI_PATH}/extra_model_paths.yaml" 2>/dev/null || true
-        cp "${env_path}/extra_model_paths.yaml" "${COMFYUI_PATH}/extra_model_paths.yaml"
+        cp "${env_path}/extra_model_paths.yaml" "${COMFYUI_PATH}/extra_model_paths.yaml" 2>/dev/null || \
+        cat "${env_path}/extra_model_paths.yaml" > "${COMFYUI_PATH}/extra_model_paths.yaml" 2>/dev/null || \
+        log_info "Warning: Could not copy extra_model_paths.yaml (will use env path directly)"
         log_info "Applied extra_model_paths.yaml from environment"
     fi
 

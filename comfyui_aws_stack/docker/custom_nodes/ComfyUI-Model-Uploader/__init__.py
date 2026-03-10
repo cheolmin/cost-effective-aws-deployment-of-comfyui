@@ -22,6 +22,7 @@ MODEL_DIRS = {
     "upscale_models": os.path.join(MODELS_BASE, "upscale_models"),
     "vae": os.path.join(MODELS_BASE, "vae"),
     "input": INPUT_PATH,
+    "input/yedp_anims": os.path.join(INPUT_PATH, "yedp_anims"),
 }
 
 # Track active upload sessions
@@ -173,6 +174,116 @@ async def upload_status(request):
         "total_chunks": session["total_chunks"],
         "total_size": session["total_size"],
     })
+
+
+def _resolve_safe_path(base_dir, relative_path):
+    """Resolve path and ensure it stays within base_dir to prevent traversal."""
+    resolved = os.path.realpath(os.path.join(base_dir, relative_path))
+    base_resolved = os.path.realpath(base_dir)
+    if not resolved.startswith(base_resolved + os.sep) and resolved != base_resolved:
+        return None
+    return resolved
+
+
+@server.PromptServer.instance.routes.get("/api/model-upload/files")
+async def list_files(request):
+    """List files and subdirectories in a target directory."""
+    target_dir = request.query.get("dir", "")
+    subfolder = request.query.get("subfolder", "")
+
+    if target_dir not in MODEL_DIRS:
+        return web.json_response({"error": "invalid dir"}, status=400)
+
+    base_path = MODEL_DIRS[target_dir]
+    if subfolder:
+        browse_path = _resolve_safe_path(base_path, subfolder)
+        if not browse_path:
+            return web.json_response({"error": "invalid path"}, status=400)
+    else:
+        browse_path = base_path
+
+    os.makedirs(browse_path, exist_ok=True)
+
+    items = []
+    try:
+        for entry in sorted(os.listdir(browse_path)):
+            full = os.path.join(browse_path, entry)
+            if os.path.isdir(full):
+                items.append({"name": entry, "type": "dir"})
+            else:
+                items.append({"name": entry, "type": "file", "size": os.path.getsize(full)})
+    except OSError as e:
+        return web.json_response({"error": str(e)}, status=500)
+
+    return web.json_response({"path": target_dir + ("/" + subfolder if subfolder else ""), "items": items})
+
+
+@server.PromptServer.instance.routes.post("/api/model-upload/mkdir")
+async def make_directory(request):
+    """Create a subdirectory inside a target directory."""
+    data = await request.json()
+    target_dir = data.get("target_dir", "")
+    folder_name = data.get("folder_name", "").strip()
+
+    if target_dir not in MODEL_DIRS:
+        return web.json_response({"error": "invalid target_dir"}, status=400)
+    if not folder_name or "/" in folder_name or "\\" in folder_name or folder_name.startswith("."):
+        return web.json_response({"error": "invalid folder_name"}, status=400)
+
+    subfolder = data.get("subfolder", "")
+    base_path = MODEL_DIRS[target_dir]
+    if subfolder:
+        parent = _resolve_safe_path(base_path, subfolder)
+        if not parent:
+            return web.json_response({"error": "invalid path"}, status=400)
+    else:
+        parent = base_path
+
+    new_dir = _resolve_safe_path(parent, folder_name)
+    if not new_dir:
+        return web.json_response({"error": "invalid path"}, status=400)
+
+    os.makedirs(new_dir, exist_ok=True)
+    return web.json_response({"status": "created", "path": new_dir})
+
+
+@server.PromptServer.instance.routes.post("/api/model-upload/delete")
+async def delete_file(request):
+    """Delete a file or empty directory inside a target directory."""
+    data = await request.json()
+    target_dir = data.get("target_dir", "")
+    filename = data.get("filename", "")
+    subfolder = data.get("subfolder", "")
+
+    if target_dir not in MODEL_DIRS:
+        return web.json_response({"error": "invalid target_dir"}, status=400)
+    if not filename:
+        return web.json_response({"error": "filename required"}, status=400)
+
+    base_path = MODEL_DIRS[target_dir]
+    if subfolder:
+        parent = _resolve_safe_path(base_path, subfolder)
+        if not parent:
+            return web.json_response({"error": "invalid path"}, status=400)
+    else:
+        parent = base_path
+
+    target_path = _resolve_safe_path(parent, filename)
+    if not target_path:
+        return web.json_response({"error": "invalid path"}, status=400)
+
+    if not os.path.exists(target_path):
+        return web.json_response({"error": "not found"}, status=404)
+
+    try:
+        if os.path.isdir(target_path):
+            shutil.rmtree(target_path)
+        else:
+            os.remove(target_path)
+    except OSError as e:
+        return web.json_response({"error": str(e)}, status=500)
+
+    return web.json_response({"status": "deleted", "path": target_path})
 
 
 class ModelUploadInfo:

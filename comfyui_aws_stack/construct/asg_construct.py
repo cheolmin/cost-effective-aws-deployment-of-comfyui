@@ -114,7 +114,7 @@ class AsgConstruct(Construct):
                 launch_template=launchTemplate,
                 launch_template_overrides=launch_template_overrides,
             ),
-            min_capacity=0,
+            min_capacity=1,
             max_capacity=1,
             desired_capacity=1,
             new_instances_protected_from_scale_in=False,

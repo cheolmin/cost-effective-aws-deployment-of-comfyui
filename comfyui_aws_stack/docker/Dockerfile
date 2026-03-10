@@ -77,9 +77,9 @@ RUN git clone --depth 1 https://github.com/flybirdxx/ComfyUI-Qwen-TTS custom_nod
     pip install --no-cache-dir -r custom_nodes/ComfyUI-QwenTTS/requirements.txt && \
     pip install --no-cache-dir "transformers==4.57.3"
 
-# ComfyUI Manager: set security_level = weak (allows installing nodes without restart)
-RUN mkdir -p user/default/ComfyUI-Manager && \
-    echo -e "[default]\nsecurity_level = weak" > user/default/ComfyUI-Manager/config.ini
+# ComfyUI Manager: copy full config.ini with security_level = weak
+RUN mkdir -p user/default/ComfyUI-Manager
+COPY --chown=user:user comfyui_config/config.ini user/default/ComfyUI-Manager/config.ini
 
 # Copy the default configuration file
 COPY --chown=user:user comfyui_config/extra_model_paths.yaml ./extra_model_paths.yaml

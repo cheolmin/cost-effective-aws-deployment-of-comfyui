@@ -162,8 +162,9 @@ configure_environment() {
         done
     fi
 
-    # Copy extra_model_paths.yaml
+    # Copy extra_model_paths.yaml (remove first to handle root-owned files from previous deploys)
     if [ -f "${env_path}/extra_model_paths.yaml" ]; then
+        rm -f "${COMFYUI_PATH}/extra_model_paths.yaml" 2>/dev/null || true
         cp "${env_path}/extra_model_paths.yaml" "${COMFYUI_PATH}/extra_model_paths.yaml"
         log_info "Applied extra_model_paths.yaml from environment"
     fi

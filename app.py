@@ -26,7 +26,7 @@ comfy_ui_stack = ComfyUIStack(
     # timezone="Asia/Tokyo",
     # schedule_scale_up="0 8 * * 1-5",
     # schedule_scale_down="0 19 * * *",
-    # self_sign_up_enabled=True,
+    self_sign_up_enabled=True,
     # allowed_sign_up_email_domains=["amazon.com"],
 )
 

@@ -75,7 +75,7 @@ RUN git clone --depth 1 https://github.com/CarlMarkswx/comfyui-GaussianViewer cu
 # 3. ComfyUI-Qwen-TTS (voice synthesis & cloning)
 RUN git clone --depth 1 https://github.com/flybirdxx/ComfyUI-Qwen-TTS custom_nodes/ComfyUI-QwenTTS && \
     pip install --no-cache-dir -r custom_nodes/ComfyUI-QwenTTS/requirements.txt && \
-    pip install --no-cache-dir "transformers==4.57.3" "tokenizers<0.20"
+    pip install --no-cache-dir "transformers==4.57.3"
 
 # ComfyUI Manager: set security_level = weak (allows installing nodes without restart)
 RUN mkdir -p user/default/ComfyUI-Manager && \

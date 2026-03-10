@@ -310,9 +310,10 @@ class AlbConstruct(Construct):
             lambda_shutdown_target_group: elbv2.ApplicationTargetGroup,
             lambda_scaleup_target_group: elbv2.ApplicationTargetGroup,
             lambda_signout_target_group: elbv2.ApplicationTargetGroup,
-            user_pool: cognito.UserPool,
-            user_pool_client: cognito.UserPoolClient,
-            user_pool_custom_domain: cognito.UserPoolDomain,
+            lambda_env_manager_target_group: elbv2.ApplicationTargetGroup = None,
+            user_pool: cognito.UserPool = None,
+            user_pool_client: cognito.UserPoolClient = None,
+            user_pool_custom_domain: cognito.UserPoolDomain = None,
     ):
         scope = self.scope
         alb = self.alb
@@ -404,6 +405,23 @@ class AlbConstruct(Construct):
                 user_pool_domain=user_pool_custom_domain,
             ),
         )
+
+        # Environment Manager API routes
+        if lambda_env_manager_target_group:
+            lambda_env_manager_rule = elbv2.ApplicationListenerRule(
+                scope,
+                "LambdaEnvManagerRule",
+                listener=listener,
+                priority=26,
+                conditions=[elbv2.ListenerCondition.path_patterns(["/api/environments", "/api/environments/*"])],
+                action=elb_actions.AuthenticateCognitoAction(
+                    next=elbv2.ListenerAction.forward(
+                        [lambda_env_manager_target_group]),
+                    user_pool=user_pool,
+                    user_pool_client=user_pool_client,
+                    user_pool_domain=user_pool_custom_domain,
+                ),
+            )
 
         # Add authentication action as the first priority rule
         auth_rule = listener.add_action(

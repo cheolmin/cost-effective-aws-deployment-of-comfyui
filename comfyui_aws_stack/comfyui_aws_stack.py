@@ -10,6 +10,8 @@ from comfyui_aws_stack.construct.asg_construct import AsgConstruct
 from comfyui_aws_stack.construct.ecs_construct import EcsConstruct
 from comfyui_aws_stack.construct.admin_construct import AdminConstruct
 from comfyui_aws_stack.construct.auth_construct import AuthConstruct
+from comfyui_aws_stack.construct.efs_construct import EfsConstruct
+from comfyui_aws_stack.construct.env_manager_construct import EnvManagerConstruct
 from aws_cdk import (
     aws_chatbot as chatbot,
     aws_iam as iam
@@ -107,6 +109,13 @@ class ComfyUIStack(Stack):
             allowed_sign_up_email_domains=allowed_sign_up_email_domains,
         )
 
+        # EFS for Environment Management
+
+        efs_construct = EfsConstruct(
+            self, "EfsConstruct",
+            vpc=vpc_construct.vpc
+        )
+
         # ASG
 
         asg_construct = AsgConstruct(
@@ -139,6 +148,22 @@ class ComfyUIStack(Stack):
             instance_types=instance_types,
             slack_workspace_id=slack_workspace_id,
             slack_channel_id=slack_channel_id,
+            # EFS for environment management
+            file_system=efs_construct.file_system,
+            access_point=efs_construct.access_point,
+            efs_security_group=efs_construct.security_group,
+        )
+
+        # Environment Manager
+
+        env_manager_construct = EnvManagerConstruct(
+            self, "EnvManagerConstruct",
+            vpc=vpc_construct.vpc,
+            file_system=efs_construct.file_system,
+            access_point=efs_construct.access_point,
+            efs_security_group=efs_construct.security_group,
+            cluster=ecs_construct.cluster,
+            service=ecs_construct.service,
         )
 
         # Slack
@@ -183,6 +208,7 @@ class ComfyUIStack(Stack):
             lambda_shutdown_target_group=admin_construct.lambda_shutdown_target_group,
             lambda_scaleup_target_group=admin_construct.lambda_scaleup_target_group,
             lambda_signout_target_group=admin_construct.lambda_signout_target_group,
+            lambda_env_manager_target_group=env_manager_construct.lambda_target_group,
             user_pool=auth_construct.user_pool,
             user_pool_client=auth_construct.user_pool_client,
             user_pool_custom_domain=auth_construct.user_pool_custom_domain,

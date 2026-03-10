@@ -10,15 +10,21 @@ RUN apt-get update && apt-get install -y \
     libbz2-dev libreadline-dev libsqlite3-dev wget curl llvm \
     libncursesw5-dev xz-utils tk-dev libxml2-dev libxmlsec1-dev libffi-dev liblzma-dev git git-lfs  \
     ffmpeg libsm6 libxext6 cmake libgl1-mesa-glx \
+    nfs-common \
     && rm -rf /var/lib/apt/lists/* \
     && git lfs install
 
-# Create and switch to a new user
+# Create user
 RUN useradd -m -u 1000 user
+
+# Create mount points with user ownership BEFORE switching to user
+RUN mkdir -p /mnt/efs && chown user:user /mnt/efs
+RUN mkdir -p /home/user/opt/ComfyUI && chown user:user /home/user/opt/ComfyUI
+RUN mkdir -p /home/user/scripts && chown user:user /home/user/scripts
+
 USER user
 ENV HOME=/home/user \
     PATH=/home/user/.local/bin:$PATH
-RUN mkdir -p /home/user/opt/ComfyUI && chown -R user /home/user/opt/ComfyUI
 
 # Pyenv and Python setup
 RUN curl https://pyenv.run | bash
@@ -28,6 +34,9 @@ RUN pyenv install $PYTHON_VERSION && \
     pyenv global $PYTHON_VERSION && \
     pip install --no-cache-dir --upgrade pip setuptools wheel && \
     pip install --no-cache-dir torch torchvision torchaudio --extra-index-url https://download.pytorch.org/whl/cu126
+
+# Install boto3 for AWS integration
+RUN pip install --no-cache-dir boto3
 
 # Set the working directory
 WORKDIR /home/user/opt/ComfyUI
@@ -41,7 +50,44 @@ RUN git clone --depth 1 https://github.com/comfyanonymous/ComfyUI . && \
 RUN pip install --no-cache-dir -r requirements.txt && \
     pip install --no-cache-dir -r custom_nodes/ComfyUI-Manager/requirements.txt
 
-# Copy the configuration file
-COPY comfyui_config/extra_model_paths.yaml ./extra_model_paths.yaml
+# Copy environment management scripts
+COPY --chown=user:user scripts/switch_environment.sh /home/user/scripts/
+COPY --chown=user:user scripts/entrypoint.sh /home/user/scripts/
+RUN chmod +x /home/user/scripts/*.sh
 
-CMD ["python", "/home/user/opt/ComfyUI/main.py", "--listen", "0.0.0.0", "--port", "8181", "--output-directory", "/home/user/opt/ComfyUI/output/"]
+# Cache busting for Environment Manager (change this value to force rebuild)
+ARG CACHE_BUST=20260310_v1
+
+# Copy Environment Manager custom node
+COPY --chown=user:user custom_nodes/ComfyUI-Environment-Manager /home/user/opt/ComfyUI/custom_nodes/ComfyUI-Environment-Manager
+
+# ============================================
+# Advanced Workshop: Pre-install custom nodes
+# ============================================
+
+# 1. ComfyUI-Yedp-Action-Director (3D animation -> ControlNet passes)
+RUN git clone --depth 1 https://github.com/yedp123/ComfyUI-Yedp-Action-Director custom_nodes/ComfyUI-Yedp-Action-Director && \
+    mkdir -p input/yedp_anims
+
+# 2. comfyui-GaussianViewer (3DGS viewer for ComfyUI)
+RUN git clone --depth 1 https://github.com/CarlMarkswx/comfyui-GaussianViewer custom_nodes/comfyui-GaussianViewer
+
+# 3. ComfyUI-Qwen-TTS (voice synthesis & cloning)
+RUN git clone --depth 1 https://github.com/flybirdxx/ComfyUI-Qwen-TTS custom_nodes/ComfyUI-QwenTTS && \
+    pip install --no-cache-dir -r custom_nodes/ComfyUI-QwenTTS/requirements.txt && \
+    pip install --no-cache-dir "transformers==4.57.3" "tokenizers<0.20"
+
+# ComfyUI Manager: set security_level = weak (allows installing nodes without restart)
+RUN mkdir -p user/default/ComfyUI-Manager && \
+    echo -e "[default]\nsecurity_level = weak" > user/default/ComfyUI-Manager/config.ini
+
+# Copy the default configuration file
+COPY --chown=user:user comfyui_config/extra_model_paths.yaml ./extra_model_paths.yaml
+
+# Environment variables for environment management
+ENV EFS_MOUNT_PATH=/mnt/efs \
+    COMFYUI_PATH=/home/user/opt/ComfyUI \
+    SCRIPTS_PATH=/home/user/scripts
+
+# Use entrypoint script for environment initialization
+ENTRYPOINT ["/home/user/scripts/entrypoint.sh"]

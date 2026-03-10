@@ -17,6 +17,9 @@ comfy_ui_stack = ComfyUIStack(
     tags={
         "Repository": "aws-samples/cost-effective-aws-deployment-of-comfyui"
     },
+    # Workshop: On-Demand g6e.xlarge
+    use_spot=False,
+    instance_types=["g6e.xlarge"],
     # Override Parameters (example)
     # auto_scale_down=False,
     # schedule_auto_scaling=True,

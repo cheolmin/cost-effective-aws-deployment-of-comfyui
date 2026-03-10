@@ -16,6 +16,7 @@ from aws_cdk import (
     aws_events as events,
     aws_events_targets as events_targets,
     aws_kms as kms,
+    aws_efs as efs,
     Duration,
     RemovalPolicy,
     Size,
@@ -45,6 +46,9 @@ class EcsConstruct(Construct):
             instance_types: list,
             slack_workspace_id: str = None,
             slack_channel_id: str = None,
+            file_system: efs.FileSystem = None,
+            access_point: efs.AccessPoint = None,
+            efs_security_group: ec2.SecurityGroup = None,
             **kwargs) -> None:
         super().__init__(scope, construct_id, **kwargs)
 
@@ -79,6 +83,28 @@ class EcsConstruct(Construct):
             ],
         )
 
+        # Add EFS permissions if file system is provided
+        if file_system:
+            task_exec_role.add_to_policy(iam.PolicyStatement(
+                effect=iam.Effect.ALLOW,
+                actions=[
+                    "elasticfilesystem:ClientMount",
+                    "elasticfilesystem:ClientWrite",
+                    "elasticfilesystem:ClientRootAccess"
+                ],
+                resources=[file_system.file_system_arn]
+            ))
+
+        # Add SSM permissions for environment switching
+        task_exec_role.add_to_policy(iam.PolicyStatement(
+            effect=iam.Effect.ALLOW,
+            actions=[
+                "ssm:GetParameter",
+                "ssm:GetParameters"
+            ],
+            resources=["arn:aws:ssm:*:*:parameter/comfyui/*"]
+        ))
+
         # ECR Repository
         docker_image_asset = ecr_assets.DockerImageAsset(
             scope,
@@ -96,8 +122,8 @@ class EcsConstruct(Construct):
             removal_policy=RemovalPolicy.DESTROY,
         )
 
-        # Docker Volume Configuration
-        volume = ecs.Volume(
+        # Docker Volume Configuration (EBS for ComfyUI data)
+        ebs_volume = ecs.Volume(
             name="ComfyUIVolume-" + suffix,
             docker_volume_configuration=ecs.DockerVolumeConfiguration(
                 scope=ecs.Scope.SHARED,
@@ -110,13 +136,39 @@ class EcsConstruct(Construct):
             )
         )
 
+        # Volumes list
+        volumes = [ebs_volume]
+
+        # EFS Volume Configuration (for environment management)
+        if file_system and access_point:
+            efs_volume = ecs.Volume(
+                name="ComfyUIEnvVolume",
+                efs_volume_configuration=ecs.EfsVolumeConfiguration(
+                    file_system_id=file_system.file_system_id,
+                    transit_encryption="ENABLED",
+                    authorization_config=ecs.AuthorizationConfig(
+                        access_point_id=access_point.access_point_id,
+                        iam="ENABLED"
+                    )
+                )
+            )
+            volumes.append(efs_volume)
+
+            # Allow ECS tasks to access EFS
+            if efs_security_group:
+                efs_security_group.add_ingress_rule(
+                    ec2.Peer.ipv4(vpc.vpc_cidr_block),
+                    ec2.Port.tcp(2049),
+                    "Allow NFS from VPC for ECS tasks"
+                )
+
         task_definition = ecs.Ec2TaskDefinition(
             scope,
             "TaskDef",
             network_mode=ecs.NetworkMode.AWS_VPC,
             task_role=task_exec_role,
             execution_role=task_exec_role,
-            volumes=[volume]
+            volumes=volumes
         )
 
         # Linux parameters for swap configuration
@@ -166,14 +218,24 @@ class EcsConstruct(Construct):
             }
         )
 
-        # Mount the host volume to the container
+        # Mount the EBS volume to the container (ComfyUI data)
         container.add_mount_points(
             ecs.MountPoint(
                 container_path="/home/user/opt/ComfyUI",
-                source_volume=volume.name,
+                source_volume=ebs_volume.name,
                 read_only=False
             )
         )
+
+        # Mount the EFS volume for environment management
+        if file_system and access_point:
+            container.add_mount_points(
+                ecs.MountPoint(
+                    container_path="/mnt/efs",
+                    source_volume="ComfyUIEnvVolume",
+                    read_only=False
+                )
+            )
 
         # Port mappings for the container
         container.add_port_mappings(

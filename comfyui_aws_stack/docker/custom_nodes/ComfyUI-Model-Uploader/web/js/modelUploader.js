@@ -8,28 +8,88 @@ app.registerExtension({
     async setup() {
         var btn = document.createElement("button");
         btn.textContent = "Upload Model";
-        btn.style.cssText = [
-            "position: fixed",
-            "bottom: 16px",
-            "right: 16px",
-            "z-index: 9999",
-            "padding: 10px 18px",
-            "background: #4a9eff",
-            "color: #fff",
-            "border: none",
-            "border-radius: 8px",
-            "cursor: pointer",
-            "font-size: 14px",
-            "font-family: sans-serif",
-            "font-weight: 500",
-            "box-shadow: 0 2px 12px rgba(0,0,0,0.4)",
-            "transition: background 0.2s",
-            "pointer-events: auto",
-        ].join(";");
-        btn.onmouseenter = function() { this.style.background = "#3a8eef"; };
-        btn.onmouseleave = function() { this.style.background = "#4a9eff"; };
         btn.onclick = function() { showUploadDialog(); };
-        document.body.appendChild(btn);
+
+        function styleAsMenuButton(b) {
+            b.style.cssText = [
+                "padding: 4px 10px",
+                "background: #4a9eff",
+                "color: #fff",
+                "border: none",
+                "border-radius: 4px",
+                "cursor: pointer",
+                "font-size: 13px",
+                "font-family: sans-serif",
+                "font-weight: 500",
+                "transition: background 0.2s",
+                "margin-left: 4px",
+                "height: 100%",
+                "white-space: nowrap",
+            ].join(";");
+            b.onmouseenter = function() { this.style.background = "#3a8eef"; };
+            b.onmouseleave = function() { this.style.background = "#4a9eff"; };
+        }
+
+        function styleAsFloating(b) {
+            b.style.cssText = [
+                "position: fixed",
+                "top: 4px",
+                "right: 4px",
+                "z-index: 9999",
+                "padding: 6px 14px",
+                "background: #4a9eff",
+                "color: #fff",
+                "border: none",
+                "border-radius: 6px",
+                "cursor: pointer",
+                "font-size: 13px",
+                "font-family: sans-serif",
+                "font-weight: 500",
+                "box-shadow: 0 2px 8px rgba(0,0,0,0.3)",
+                "transition: background 0.2s",
+                "pointer-events: auto",
+            ].join(";");
+            b.onmouseenter = function() { this.style.background = "#3a8eef"; };
+            b.onmouseleave = function() { this.style.background = "#4a9eff"; };
+        }
+
+        function tryInsertInMenu() {
+            // Look for ComfyUI Manager button or the top menu actions area
+            var managerBtn = document.querySelector(".manager-button, #comfyui-manager-button");
+            if (managerBtn && managerBtn.parentElement) {
+                styleAsMenuButton(btn);
+                managerBtn.parentElement.insertBefore(btn, managerBtn.nextSibling);
+                return true;
+            }
+            // New Vue frontend: look for the top menu-bar actions container
+            var menuActions = document.querySelector(".comfyui-menu .comfyui-menu-push")
+                || document.querySelector(".comfyui-menu-push")
+                || document.querySelector("[class*='actionbar']")
+                || document.querySelector(".p-menubar-end");
+            if (menuActions) {
+                styleAsMenuButton(btn);
+                menuActions.appendChild(btn);
+                return true;
+            }
+            return false;
+        }
+
+        // Try immediately, then observe DOM for late-loading menu
+        if (!tryInsertInMenu()) {
+            // Fallback: floating top-right (avoids bottom-right overlap)
+            styleAsFloating(btn);
+            document.body.appendChild(btn);
+
+            // Keep watching for menu to appear (e.g., after Manager loads)
+            var observer = new MutationObserver(function() {
+                if (btn.parentElement === document.body && tryInsertInMenu()) {
+                    observer.disconnect();
+                }
+            });
+            observer.observe(document.body, { childList: true, subtree: true });
+            // Stop watching after 30s to avoid leaks
+            setTimeout(function() { observer.disconnect(); }, 30000);
+        }
     },
 });
 

@@ -21,7 +21,7 @@ comfy_ui_stack = ComfyUIStack(
     use_spot=False,
     instance_types=["g6e.xlarge"],
     # Override Parameters (example)
-    # auto_scale_down=False,
+    auto_scale_down=False,
     # schedule_auto_scaling=True,
     # timezone="Asia/Tokyo",
     # schedule_scale_up="0 8 * * 1-5",

@@ -55,4 +55,4 @@ node_modules
 .bandit.yaml
 bandit-env/
 bandit_output.txt
-cfn_nagged.yaml
+cfn_nagged.yaml.stack-name

@@ -175,7 +175,7 @@ class EcsConstruct(Construct):
         linux_parameters = ecs.LinuxParameters(
             self,
             "LinuxParameters",
-            max_swap=Size.mebibytes(10240),  # 10GB swap memory (10 * 1024 MiB)
+            max_swap=Size.mebibytes(32768),  # 32GB swap memory (32 * 1024 MiB)
             swappiness=60    # Default swappiness value
         )
 

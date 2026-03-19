@@ -37,9 +37,8 @@ if [ -d "${COMFYUI_SNAPSHOT}" ]; then
         mkdir -p "${COMFYUI_PATH}/input/yedp_anims"
         # Ensure temp_uploads exists
         mkdir -p "${COMFYUI_PATH}/temp_uploads"
-        # Sync config.ini if missing
-        if [ ! -f "${COMFYUI_PATH}/user/default/ComfyUI-Manager/config.ini" ] && \
-           [ -f "${COMFYUI_SNAPSHOT}/user/default/ComfyUI-Manager/config.ini" ]; then
+        # Always sync config.ini (enforce security_level=weak)
+        if [ -f "${COMFYUI_SNAPSHOT}/user/default/ComfyUI-Manager/config.ini" ]; then
             mkdir -p "${COMFYUI_PATH}/user/default/ComfyUI-Manager"
             cp "${COMFYUI_SNAPSHOT}/user/default/ComfyUI-Manager/config.ini" \
                "${COMFYUI_PATH}/user/default/ComfyUI-Manager/config.ini"
@@ -77,14 +76,13 @@ USER_DIR="${COMFYUI_USER_DIR:-${EFS_MOUNT_PATH}/environments/default/user}"
 mkdir -p "${OUTPUT_DIR}"
 mkdir -p "${USER_DIR}"
 
-# Copy ComfyUI Manager config (security_level=weak) if not already present
+# Always enforce ComfyUI Manager config (security_level=weak)
+# Manager may overwrite config.ini with defaults on startup, so force it every time
 MANAGER_CONFIG_DIR="${USER_DIR}/default/ComfyUI-Manager"
-if [ ! -f "${MANAGER_CONFIG_DIR}/config.ini" ]; then
-    echo "Initializing ComfyUI Manager config (security_level=weak)..."
-    mkdir -p "${MANAGER_CONFIG_DIR}"
-    cp "${COMFYUI_PATH}/user/default/ComfyUI-Manager/config.ini" "${MANAGER_CONFIG_DIR}/config.ini" 2>/dev/null || \
-    printf '[default]\nsecurity_level = weak\n' > "${MANAGER_CONFIG_DIR}/config.ini"
-fi
+mkdir -p "${MANAGER_CONFIG_DIR}"
+echo "Enforcing ComfyUI Manager config (security_level=weak)..."
+cp "${COMFYUI_PATH}/user/default/ComfyUI-Manager/config.ini" "${MANAGER_CONFIG_DIR}/config.ini" 2>/dev/null || \
+printf '[default]\nsecurity_level = weak\n' > "${MANAGER_CONFIG_DIR}/config.ini"
 
 # Build command arguments - always include user directory
 COMFYUI_ARGS="--listen 0.0.0.0 --port 8181 --output-directory ${OUTPUT_DIR} --user-directory ${USER_DIR}"

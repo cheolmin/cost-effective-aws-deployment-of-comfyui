@@ -7,12 +7,8 @@ from comfyui_aws_stack.comfyui_aws_stack import ComfyUIStack
 from cdk_nag import AwsSolutionsChecks, NagSuppressions
 
 app = cdk.App()
-
-# Stack name: passed via -c stack_name=xxx from Makefile, default for backward compat
-stack_name = app.node.try_get_context("stack_name") or "ComfyUIStack"
-
 comfy_ui_stack = ComfyUIStack(
-    app, stack_name,
+    app, "ComfyUIStack",
     description="ComfyUI on AWS (uksb-ggn3251wsp)",
     env=Environment(
         account=os.environ["CDK_DEFAULT_ACCOUNT"],
